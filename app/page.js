@@ -67,6 +67,7 @@ const init = {
   rawTx: null,
   analysis: null,
   // ui
+  signerWifs: ['', '', '', '', ''],
   importText: '',
   importFmt: 'base64',
   exportFmt: 'base64',
@@ -82,13 +83,22 @@ function reduce(s, a) {
       var sc = SCENARIOS[a.v];
       return {
         ...s, scenario: a.v, m: sc.m, n: sc.n, network: sc.network,
-        inputs: sc.inputs, outputs: sc.outputs,
+        inputs: sc.inputs.map(function(i) { return { ...i, }; }),
+        outputs: sc.outputs.map(function(o) { return { ...o, address: '' }; }),
         signers: [], multisig: null, psbt: null, psbtBase64: null,
         signedPsbts: Array(sc.n).fill(null),
         combinedPsbt: null, finalizedPsbt: null, rawTx: null, analysis: null,
+        signerWifs: ['', '', '', '', ''],
         step: 'create', error: null, log: [],
       };
     }
+    case 'INPUT_EDIT': { var inp = [...s.inputs]; inp[a.idx] = { ...inp[a.idx], [a.field]: a.v }; return { ...s, inputs: inp }; }
+    case 'INPUT_ADD': return { ...s, inputs: [...s.inputs, { txid: '', vout: 0, amount: 0, label: 'New Input' }] };
+    case 'INPUT_REM': return { ...s, inputs: s.inputs.filter(function(_, j) { return j !== a.idx; }) };
+    case 'OUTPUT_EDIT': { var out = [...s.outputs]; out[a.idx] = { ...out[a.idx], [a.field]: a.v }; return { ...s, outputs: out }; }
+    case 'OUTPUT_ADD': return { ...s, outputs: [...s.outputs, { label: 'New Output', amount: 0, address: '' }] };
+    case 'OUTPUT_REM': return { ...s, outputs: s.outputs.filter(function(_, j) { return j !== a.idx; }) };
+    case 'SIGNER_WIF': { var wifs = [...s.signerWifs]; wifs[a.idx] = a.v; return { ...s, signerWifs: wifs }; }
     case 'BTC': return { ...s, btc: a.v };
     case 'SIGNERS': return { ...s, signers: a.v };
     case 'MULTISIG': return { ...s, multisig: a.v };
@@ -142,11 +152,14 @@ export default function Home() {
       d({ t: 'LOADING', v: true });
       var btc = await loadBtc();
 
-      var signers = Array.from({ length: s.n }, function () {
+      var wifCount = 0;
+      var signers = Array.from({ length: s.n }, function (_, i) {
+        var wif = s.signerWifs[i] && s.signerWifs[i].trim();
+        if (wif) { wifCount++; return btc.keyPairFromWIF(wif, s.network); }
         return btc.generateKeyPair(s.network);
       });
       d({ t: 'SIGNERS', v: signers });
-      log('Generated ' + s.n + ' key pairs');
+      log(wifCount + ' user key(s), ' + (s.n - wifCount) + ' generated');
 
       var multisig = btc.createMultisig(s.m, signers.map(function (sk) { return sk.publicKey; }), s.network);
       d({ t: 'MULTISIG', v: multisig });
@@ -167,6 +180,8 @@ export default function Home() {
           };
         }),
         outputs: s.outputs.map(function (out, i) {
+          var addr = out.address && out.address.trim();
+          if (addr) return { address: addr, amount: out.amount };
           if (i === 0) return { address: change.address, amount: out.amount };
           return { address: multisig.address, amount: out.amount };
         }),
@@ -190,9 +205,11 @@ export default function Home() {
     try {
       var btc = await loadBtc();
       var cloned = btc.psbtFromBase64(s.psbtBase64, s.network);
-      btc.signAllInputs(cloned, s.signers[idx].keyPair);
+      var wif = s.signerWifs[idx] && s.signerWifs[idx].trim();
+      var keyPair = wif ? btc.keyPairFromWIF(wif, s.network).keyPair : s.signers[idx].keyPair;
+      btc.signAllInputs(cloned, keyPair);
       d({ t: 'SIGNED', i: idx, v: btc.psbtToBase64(cloned) });
-      log(SIGNER_PRESETS[idx].name + ' signed ' + s.inputs.length + ' input(s)');
+      log(SIGNER_PRESETS[idx].name + ' signed ' + s.inputs.length + ' input(s)' + (wif ? ' (user WIF)' : ''));
     } catch (e) {
       d({ t: 'ERR', v: e.message });
       console.error(e);
@@ -341,37 +358,57 @@ export default function Home() {
                 {s.inputs.map(function (inp, i) {
                   return (
                     <div key={i} style={{ background: '#0a0f1a', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>Input #{i}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>{(inp.amount / 1e8).toFixed(8)} BTC</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {inp.amount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>{(inp.amount / 1e8).toFixed(8)} BTC</span>}
+                          {s.inputs.length > 1 && <Btn small outline color="#ef4444" onClick={function () { d({ t: 'INPUT_REM', idx: i }); }}>{'\u00D7'}</Btn>}
+                        </div>
                       </div>
-                      <Field label="TXID" value={inp.txid} mono />
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <Field label="Vout" value={String(inp.vout)} />
-                        <Field label="Sats" value={inp.amount.toLocaleString()} />
+                      <Inp label="TXID" value={inp.txid} onChange={function (v) { d({ t: 'INPUT_EDIT', idx: i, field: 'txid', v: v }); }} placeholder="7b1eabe0209b1fe794124575ef807057c77ada2138ae4fa8d6c4de0398a14f3c" mono />
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <div style={{ flex: 1 }}><Inp label="Vout" value={String(inp.vout)} onChange={function (v) { d({ t: 'INPUT_EDIT', idx: i, field: 'vout', v: parseInt(v) || 0 }); }} type="number" /></div>
+                        <div style={{ flex: 2 }}><Inp label="Amount (sats)" value={String(inp.amount)} onChange={function (v) { d({ t: 'INPUT_EDIT', idx: i, field: 'amount', v: parseInt(v) || 0 }); }} type="number" /></div>
                       </div>
                     </div>
                   );
                 })}
+                <Btn small outline color="#3b82f6" onClick={function () { d({ t: 'INPUT_ADD' }); }}>+ Add UTXO</Btn>
               </Card>
 
               <Card title="Outputs" icon={'\u{1F4E4}'} accent="#3b82f6">
                 {s.outputs.map(function (out, i) {
                   return (
                     <div key={i} style={{ background: '#0a0f1a', borderRadius: 8, padding: 12, marginBottom: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>{out.label || 'Output #' + i}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#f59e0b' }}>{(out.amount / 1e8).toFixed(8)} BTC</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {out.amount > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b' }}>{(out.amount / 1e8).toFixed(8)} BTC</span>}
+                          {s.outputs.length > 1 && <Btn small outline color="#ef4444" onClick={function () { d({ t: 'OUTPUT_REM', idx: i }); }}>{'\u00D7'}</Btn>}
+                        </div>
                       </div>
+                      <Inp label="Label" value={out.label || ''} onChange={function (v) { d({ t: 'OUTPUT_EDIT', idx: i, field: 'label', v: v }); }} placeholder={'Output #' + i} />
+                      <Inp label="Address (leave blank to auto-derive)" value={out.address || ''} onChange={function (v) { d({ t: 'OUTPUT_EDIT', idx: i, field: 'address', v: v }); }} placeholder="tb1q\u2026 or leave blank" mono />
+                      <Inp label="Amount (sats)" value={String(out.amount)} onChange={function (v) { d({ t: 'OUTPUT_EDIT', idx: i, field: 'amount', v: parseInt(v) || 0 }); }} type="number" />
                     </div>
                   );
                 })}
                 {fee > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#0f172a', borderRadius: 6 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: '#0f172a', borderRadius: 6, marginBottom: 8 }}>
                     <span style={{ fontSize: 11, color: '#64748b' }}>Network Fee</span>
                     <span style={{ fontSize: 11, fontWeight: 700, color: '#10b981', fontFamily: 'monospace' }}>{fee.toLocaleString()} sats</span>
                   </div>
                 )}
+                <Btn small outline color="#3b82f6" onClick={function () { d({ t: 'OUTPUT_ADD' }); }}>+ Add Output</Btn>
+              </Card>
+
+              <Card title="Signer Keys (optional)" icon={'\u{1F511}'} accent="#f59e0b" sub="Provide WIF keys to build multisig from real keys. Leave blank to auto-generate.">
+                {Array.from({ length: s.n }, function (_, i) {
+                  var p = SIGNER_PRESETS[i];
+                  return (
+                    <Inp key={i} label={p.icon + ' ' + p.name + ' WIF'} value={s.signerWifs[i]} onChange={function (v) { d({ t: 'SIGNER_WIF', idx: i, v: v }); }} placeholder={s.network === 'testnet' ? 'cN\u2026 (testnet WIF)' : 'L1\u2026 (mainnet WIF)'} type="password" mono />
+                  );
+                })}
               </Card>
 
               <Btn onClick={doCreate} color="#3b82f6" block disabled={!s.scenario || s.loading}>
@@ -454,7 +491,12 @@ export default function Home() {
                           <Btn small color={p.color} disabled={done} onClick={function () { doSign(i); }}>{done ? '\u2713' : 'Sign'}</Btn>
                         </div>
                       </div>
-                      {key && <div style={{ marginTop: 6, fontSize: 10, fontFamily: 'monospace', color: '#475569' }}>pubkey: {key.pubHex.slice(0, 24)}{'\u2026'}</div>}
+                      {!done && (
+                        <div style={{ marginTop: 10 }}>
+                          <Inp label={'WIF (optional \u2014 leave blank to use generated key)'} value={s.signerWifs[i]} onChange={function (v) { d({ t: 'SIGNER_WIF', idx: i, v: v }); }} placeholder={s.network === 'testnet' ? 'cN\u2026' : 'L1\u2026'} type="password" mono />
+                        </div>
+                      )}
+                      {key && <div style={{ marginTop: 4, fontSize: 10, fontFamily: 'monospace', color: '#475569' }}>pubkey: {key.pubHex.slice(0, 24)}{'\u2026'}</div>}
                     </div>
                   );
                 })}
