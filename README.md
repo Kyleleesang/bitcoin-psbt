@@ -1,4 +1,4 @@
-Live now at: https://kyleleesang.github.io/bitcoin-psbt/!
+Live now at: https://kyleleesang.github.io/bitcoin-psbt/
 
 
   PSBT Workbench
