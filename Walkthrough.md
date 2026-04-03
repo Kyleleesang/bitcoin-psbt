@@ -71,25 +71,9 @@ Fee (implicit):                   100,000 sats
 
 ---
 
-## Scenario 2 — 2-of-3 Multisig Vault (alternate quorum — Alice + Carol)
 
-Same vault as Scenario 1. Skip Bob and have Alice and Carol sign to confirm any 2-of-3 combination works.
 
-**Steps:**
-1. Click **Reset**, then click **"2-of-3 Multisig Vault"**.
-2. Paste the same three WIF keys for Alice, Bob, and Carol as in Scenario 1.
-3. Click **"Create PSBT"**.
-4. Advance to **Signer** — click **Sign** for **Alice** (slot 0) and **Sign** for **Carol** (slot 2). Skip Bob.
-5. Complete **Combiner → Finalizer → Extractor**.
-
-**What to verify:**
-- Signer: Alice and Carol show **SIGNED**. Bob shows **AWAITING**.
-- Combiner: Activity Log shows `Combined 2 partially-signed PSBTs`.
-- Extractor: A valid TXID and raw hex are produced — identical format to Scenario 1.
-
----
-
-## Scenario 3 — 3-of-5 Corporate Treasury (Alice + Carol + Eve)
+## Scenario 2 — 3-of-5 Corporate Treasury (Alice + Carol + Eve)
 
 Board-level multisig: 5 authorized signers, 3 required. Bob and Dave are deliberately skipped.
 
@@ -131,25 +115,8 @@ Fee (implicit):                    50,000 sats
 
 ---
 
-## Scenario 4 — 3-of-5 Corporate Treasury (alternate quorum — Alice + Bob + Dave)
 
-Same treasury as Scenario 3. Different 3-person subset to confirm any combination of 3 satisfies the threshold.
-
-**Steps:**
-1. Click **Reset**, then click **"3-of-5 Corporate Treasury"**.
-2. Paste the same five WIF keys as in Scenario 3.
-3. Click **"Create PSBT"**.
-4. Advance to **Signer** — click **Sign** for **Alice** (slot 0), **Bob** (slot 1), and **Dave** (slot 3). Leave Carol and Eve unsigned.
-5. Complete **Combiner → Finalizer → Extractor**.
-
-**What to verify:**
-- Signer: Alice, Bob, Dave show **SIGNED**. Carol and Eve show **AWAITING**.
-- Combiner: Activity Log shows `Combined 3 partially-signed PSBTs`.
-- Extractor: Valid TXID and raw hex — same structure as Scenario 3.
-
----
-
-## Scenario 5 — Single-sig Hardware Wallet
+## Scenario 3 — Single-sig Hardware Wallet
 
 The simplest case: 1-of-1 P2WPKH. Only Alice signs. No witness script or multisig redeem script.
 
@@ -186,7 +153,7 @@ Fee (implicit):         10,000 sats
 
 ---
 
-## Scenario 6 — Import / Resume (partially-signed PSBT)
+## Scenario 4 — Import / Resume (partially-signed PSBT)
 
 Tests PSBT portability: export after one signature, reset the app, re-import, and finish signing.
 
@@ -234,14 +201,3 @@ Finalized: witness stacks assembled
 Extracted raw tx: <txid>
 ```
 
----
-
-## Validation error states
-
-| Trigger | Expected error |
-|---------|----------------|
-| Click "Combine PSBTs" with 0 signed PSBTs (threshold 2) | `Need 2 signed PSBTs, have 0` |
-| Click "Combine PSBTs" with only Alice signed (threshold 2) | `Need 2 signed PSBTs, have 1` |
-| Click "Combine PSBTs" with only Alice signed (threshold 3) | `Need 3 signed PSBTs, have 1` |
-| Paste `notvalid!!!` into Import and click Import | `Import failed: …` |
-| Paste an invalid WIF into a signer field and click "Create PSBT" | Error from bitcoinjs-lib displayed in the error banner |
