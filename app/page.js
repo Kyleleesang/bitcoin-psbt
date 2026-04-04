@@ -111,13 +111,17 @@ function reduce(s, a) {
     case 'IMPORT_TEXT': return { ...s, importText: a.v };
     case 'IMPORT_FMT': return { ...s, importFmt: a.v };
     case 'EXPORT_FMT': return { ...s, exportFmt: a.v };
-    case 'IMPORT': return {
-      ...s,
-      psbt: a.psbt, psbtBase64: a.b64, analysis: a.analysis, step: a.nextStep,
-      signers: [], signedPsbts: [], combinedPsbt: null, finalizedPsbt: null, rawTx: null,
-      importText: '', error: null,
-      log: [...s.log, { t: Date.now(), m: 'Imported PSBT \u2014 jumped to ' + a.nextStep }],
-    };
+    case 'IMPORT': {
+      var importSP = Array(s.n).fill(null);
+      if (a.analysis.totalSigs > 0) importSP[0] = a.b64;
+      return {
+        ...s,
+        psbt: a.psbt, psbtBase64: a.b64, analysis: a.analysis, step: a.nextStep,
+        signers: [], signedPsbts: importSP, combinedPsbt: null, finalizedPsbt: null, rawTx: null,
+        importText: '', error: null,
+        log: [...s.log, { t: Date.now(), m: 'Imported PSBT \u2014 jumped to ' + a.nextStep }],
+      };
+    }
     case 'LOG': return { ...s, log: [...s.log, { t: Date.now(), m: a.v }] };
     case 'ERR': return { ...s, error: a.v, loading: false };
     case 'NOERR': return { ...s, error: null };
@@ -206,6 +210,10 @@ export default function Home() {
       var btc = await loadBtc();
       var cloned = btc.psbtFromBase64(s.psbtBase64, s.network);
       var wif = s.signerWifs[idx] && s.signerWifs[idx].trim();
+      if (!wif && !s.signers[idx]) {
+        d({ t: 'ERR', v: SIGNER_PRESETS[idx].name + ' has no generated key — enter a WIF key to sign.' });
+        return;
+      }
       var keyPair = wif ? btc.keyPairFromWIF(wif, s.network).keyPair : s.signers[idx].keyPair;
       btc.signAllInputs(cloned, keyPair);
       d({ t: 'SIGNED', i: idx, v: btc.psbtToBase64(cloned) });
@@ -271,7 +279,7 @@ export default function Home() {
       }
       var b64 = btc.psbtToBase64(psbt);
       var analysis = btc.analyzePSBT(psbt);
-      var nextStep = analysis.isFinalized ? 'extract' : analysis.totalSigs > 0 ? 'combine' : 'sign';
+      var nextStep = analysis.isFinalized ? 'extract' : analysis.totalSigs >= s.m ? 'combine' : 'sign';
       d({ t: 'IMPORT', psbt: psbt, b64: b64, analysis: analysis, nextStep: nextStep });
     } catch (e) {
       d({ t: 'ERR', v: 'Import failed: ' + e.message });
@@ -279,8 +287,13 @@ export default function Home() {
   };
 
   var exportPsbt = s.finalizedPsbt || s.combinedPsbt || s.psbt;
+  var signedB64s = s.signedPsbts.filter(Boolean);
+  var exportB64 = (s.finalizedPsbt && s.btc ? s.btc.psbtToBase64(s.finalizedPsbt)
+    : s.combinedPsbt && s.btc ? s.btc.psbtToBase64(s.combinedPsbt)
+    : signedB64s.length === 1 ? signedB64s[0]
+    : s.psbtBase64);
   var exportStr = exportPsbt
-    ? (s.exportFmt === 'hex' ? (s.btc ? s.btc.psbtToHex(exportPsbt) : null) : s.psbtBase64)
+    ? (s.exportFmt === 'hex' ? (s.btc ? s.btc.psbtToHex(exportPsbt) : null) : exportB64)
     : null;
 
   return (
@@ -468,6 +481,11 @@ export default function Home() {
           {/* SIGN */}
           {s.step === 'sign' && (
             <Card title="Signer \u2014 Multi-Party Signing" icon={'\u{1F511}'} accent="#f59e0b" sub={s.m + '-of-' + s.n + ' multisig \u00B7 ' + signedCount + ' signed'}>
+              {s.signers.length === 0 && (
+                <div style={{ background: '#1c1a08', border: '1px solid #78350f', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 12, color: '#fcd34d' }}>
+                  Imported PSBT \u2014 no keys were generated in this session. Enter a WIF key for each signer before clicking Sign.
+                </div>
+              )}
               <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 14px', lineHeight: 1.6 }}>
                 Each key holder signs independently and returns their partially-signed PSBT.
               </p>
@@ -493,7 +511,7 @@ export default function Home() {
                       </div>
                       {!done && (
                         <div style={{ marginTop: 10 }}>
-                          <Inp label={'WIF (optional \u2014 leave blank to use generated key)'} value={s.signerWifs[i]} onChange={function (v) { d({ t: 'SIGNER_WIF', idx: i, v: v }); }} placeholder={s.network === 'testnet' ? 'cN\u2026' : 'L1\u2026'} type="password" mono />
+                          <Inp label={s.signers[i] ? 'WIF (optional \u2014 leave blank to use generated key)' : 'WIF key required \u2014 enter to sign'} value={s.signerWifs[i]} onChange={function (v) { d({ t: 'SIGNER_WIF', idx: i, v: v }); }} placeholder={s.network === 'testnet' ? 'cN\u2026' : 'L1\u2026'} type="password" mono />
                         </div>
                       )}
                       {key && <div style={{ marginTop: 4, fontSize: 10, fontFamily: 'monospace', color: '#475569' }}>pubkey: {key.pubHex.slice(0, 24)}{'\u2026'}</div>}
