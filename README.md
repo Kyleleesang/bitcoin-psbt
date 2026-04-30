@@ -93,7 +93,7 @@ Live now at: https://kyleleesang.github.io/bitcoin-psbt/
   The Bitcoin logic in lib/bitcoin.js is fully decoupled from the UI and can be imported into any JavaScript environment that supports ES modules.
 
   ---
-  Would you like me to write this directly to README.md?
+  
 
 
 
