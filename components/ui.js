@@ -1,5 +1,7 @@
 'use client';
 
+import { useId } from 'react';
+
 export function Badge({ children, color = '#6b7280', filled }) {
   return (
     <span
@@ -26,6 +28,7 @@ export function Badge({ children, color = '#6b7280', filled }) {
 export function Dot({ on, color = '#10b981', size = 8 }) {
   return (
     <span
+      aria-hidden="true"
       style={{
         display: 'inline-block',
         width: size,
@@ -44,9 +47,9 @@ export function Card({ children, title, icon, accent, sub, actions }) {
   return (
     <div
       style={{
-        background: '#0c1322',
+        background: 'var(--color-surface)',
         borderRadius: 12,
-        border: '1px solid #1e293b',
+        border: '1px solid var(--color-border)',
         overflow: 'hidden',
         marginBottom: 14,
       }}
@@ -55,7 +58,7 @@ export function Card({ children, title, icon, accent, sub, actions }) {
         <div
           style={{
             padding: '14px 18px',
-            borderBottom: '1px solid #1e293b',
+            borderBottom: '1px solid var(--color-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -65,16 +68,10 @@ export function Card({ children, title, icon, accent, sub, actions }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+            {icon && <span aria-hidden="true" style={{ fontSize: 16 }}>{icon}</span>}
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>
-                {title}
-              </div>
-              {sub && (
-                <div style={{ fontSize: 10, color: '#64748b', marginTop: 1 }}>
-                  {sub}
-                </div>
-              )}
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>{title}</div>
+              {sub && <div style={{ fontSize: 10, color: 'var(--color-text-subtle)', marginTop: 1 }}>{sub}</div>}
             </div>
           </div>
           {actions && <div style={{ display: 'flex', gap: 6 }}>{actions}</div>}
@@ -92,7 +89,7 @@ export function Field({ label, value, mono, accent }) {
         style={{
           fontSize: 9,
           fontWeight: 700,
-          color: '#475569',
+          color: 'var(--color-text-faint)',
           textTransform: 'uppercase',
           letterSpacing: 1,
           marginBottom: 2,
@@ -103,38 +100,30 @@ export function Field({ label, value, mono, accent }) {
       <div
         style={{
           fontSize: 11,
-          color: accent || '#cbd5e1',
-          fontFamily: mono
-            ? "'SF Mono',Consolas,monospace"
-            : 'inherit',
+          color: accent || 'var(--color-text-muted)',
+          fontFamily: mono ? "'SF Mono',Consolas,monospace" : 'inherit',
           wordBreak: 'break-all',
           lineHeight: 1.5,
         }}
       >
-        {value || '\u2014'}
+        {value || '—'}
       </div>
     </div>
   );
 }
 
-export function Inp({
-  label,
-  value,
-  onChange,
-  placeholder,
-  mono,
-  type = 'text',
-  disabled,
-}) {
+export function Inp({ label, value, onChange, placeholder, mono, type = 'text', disabled, 'aria-label': ariaLabel }) {
+  const id = useId();
   return (
     <div style={{ marginBottom: 10 }}>
       {label && (
         <label
+          htmlFor={id}
           style={{
             display: 'block',
             fontSize: 10,
             fontWeight: 700,
-            color: '#64748b',
+            color: 'var(--color-text-subtle)',
             marginBottom: 3,
             textTransform: 'uppercase',
             letterSpacing: 0.5,
@@ -144,24 +133,23 @@ export function Inp({
         </label>
       )}
       <input
+        id={id}
         type={type}
         value={value}
-        onChange={function (e) {
-          onChange(e.target.value);
-        }}
+        onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
+        aria-label={!label ? ariaLabel : undefined}
+        aria-disabled={disabled}
         style={{
           width: '100%',
           padding: '7px 10px',
-          background: '#0a0f1a',
-          border: '1px solid #1e293b',
+          background: 'var(--color-surface-alt)',
+          border: '1px solid var(--color-border)',
           borderRadius: 6,
-          color: '#e2e8f0',
+          color: 'var(--color-text)',
           fontSize: 12,
-          fontFamily: mono
-            ? "'SF Mono',Consolas,monospace"
-            : 'inherit',
+          fontFamily: mono ? "'SF Mono',Consolas,monospace" : 'inherit',
           outline: 'none',
           boxSizing: 'border-box',
           opacity: disabled ? 0.5 : 1,
@@ -171,16 +159,18 @@ export function Inp({
   );
 }
 
-export function TArea({ label, value, onChange, placeholder, rows = 3 }) {
+export function TArea({ label, value, onChange, placeholder, rows = 3, 'aria-label': ariaLabel }) {
+  const id = useId();
   return (
     <div style={{ marginBottom: 10 }}>
       {label && (
         <label
+          htmlFor={id}
           style={{
             display: 'block',
             fontSize: 10,
             fontWeight: 700,
-            color: '#64748b',
+            color: 'var(--color-text-subtle)',
             marginBottom: 3,
             textTransform: 'uppercase',
             letterSpacing: 0.5,
@@ -190,19 +180,19 @@ export function TArea({ label, value, onChange, placeholder, rows = 3 }) {
         </label>
       )}
       <textarea
+        id={id}
         value={value}
-        onChange={function (e) {
-          onChange(e.target.value);
-        }}
+        onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
+        aria-label={!label ? ariaLabel : undefined}
         style={{
           width: '100%',
           padding: '7px 10px',
-          background: '#0a0f1a',
-          border: '1px solid #1e293b',
+          background: 'var(--color-surface-alt)',
+          border: '1px solid var(--color-border)',
           borderRadius: 6,
-          color: '#e2e8f0',
+          color: 'var(--color-text)',
           fontSize: 11,
           fontFamily: "'SF Mono',Consolas,monospace",
           outline: 'none',
@@ -214,40 +204,26 @@ export function TArea({ label, value, onChange, placeholder, rows = 3 }) {
   );
 }
 
-export function Btn({
-  children,
-  onClick,
-  color = '#3b82f6',
-  disabled,
-  small,
-  outline,
-  block,
-}) {
+export function Btn({ children, onClick, color = '#3b82f6', disabled, small, outline, block, 'aria-label': ariaLabel, 'aria-pressed': ariaPressed }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      aria-disabled={disabled}
       style={{
         padding: small ? '5px 12px' : '8px 18px',
         borderRadius: 8,
         cursor: disabled ? 'default' : 'pointer',
         fontWeight: 600,
         fontSize: small ? 11 : 12,
-        border: outline
-          ? '1.5px solid ' + color
-          : '1.5px solid transparent',
-        background: disabled
-          ? '#1e293b'
-          : outline
-          ? 'transparent'
-          : color,
-        color: disabled ? '#475569' : outline ? color : '#fff',
+        border: outline ? '1.5px solid ' + color : '1.5px solid transparent',
+        background: disabled ? 'var(--color-border)' : outline ? 'transparent' : color,
+        color: disabled ? 'var(--color-text-faint)' : outline ? color : '#fff',
         opacity: disabled ? 0.5 : 1,
         width: block ? '100%' : 'auto',
-        boxShadow:
-          disabled || outline
-            ? 'none'
-            : '0 2px 8px ' + color + '30',
+        boxShadow: disabled || outline ? 'none' : '0 2px 8px ' + color + '30',
       }}
     >
       {children}

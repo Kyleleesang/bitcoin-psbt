@@ -1,0 +1,8 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-console": ["warn", { "allow": ["error", "warn"] }],
+    "react/no-array-index-key": "warn",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
+  }
+}

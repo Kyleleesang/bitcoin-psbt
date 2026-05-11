@@ -4,10 +4,22 @@ A step-by-step guide to testing every feature of the app with exact dummy data a
 
 ---
 
+> **Security notice — testnet demo keys only**
+>
+> The WIF private keys in this file are **Bitcoin testnet keys with zero monetary value**.
+> They are published here solely to make the walkthrough reproducible.
+> - Never publish mainnet private keys in any repository.
+> - Never use these keys (or any keys derived from them) on mainnet.
+> - For real use, generate fresh keys or import your own hardware-wallet keys.
+
+---
+
 ## Quick-start
 
 ```
 npm run dev
+npm test          # run the test suite
+npm run lint      # check code quality
 ```
 
 Open `http://localhost:3000` in your browser.
@@ -17,6 +29,8 @@ Open `http://localhost:3000` in your browser.
 ## Signer Key Reference
 
 Paste these WIF keys into the corresponding signer slots before clicking "Create PSBT". Using fixed keys means the same public keys are used every run, making results reproducible.
+
+**These are TESTNET-ONLY demo keys. Zero real-world value.**
 
 | Slot | Name  | Role             | WIF (testnet)                                        | Public Key (hex)                                                   |
 |------|-------|------------------|------------------------------------------------------|--------------------------------------------------------------------|
